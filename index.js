@@ -1,0 +1,85 @@
+require('dotenv').config();
+const express = require('express');
+const sql = require('mssql');
+const dbConfig = require('./config/database');
+const revenueRoutes = require('./routes/revenue');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Database connection pool
+let pool;
+
+async function connectDatabase() {
+  try {
+    pool = await sql.connect(dbConfig);
+    console.log('✅ Đã kết nối thành công với SQL Server');
+  } catch (error) {
+    console.error('❌ Lỗi kết nối database:', error);
+    process.exit(1);
+  }
+}
+
+// Routes
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API lấy dữ liệu doanh thu từ SQL Server',
+    version: '1.0.0',
+    endpoints: {
+      revenue: '/api/revenue',
+      revenueByDate: '/api/revenue?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD',
+      revenueByMonth: '/api/revenue/month?year=YYYY&month=MM'
+    }
+  });
+});
+
+app.use('/api/revenue', revenueRoutes);
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    if (pool && pool.connected) {
+      res.json({ status: 'healthy', database: 'connected' });
+    } else {
+      res.status(503).json({ status: 'unhealthy', database: 'disconnected' });
+    }
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy', error: error.message });
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message
+  });
+});
+
+// Start server
+async function startServer() {
+  await connectDatabase();
+  app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+  });
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Đang tắt server...');
+  if (pool) {
+    await pool.close();
+    console.log('✅ Đã đóng kết nối database');
+  }
+  process.exit(0);
+});
+
+startServer();
+
+// Export pool for use in routes
+module.exports = { getPool: () => pool };
