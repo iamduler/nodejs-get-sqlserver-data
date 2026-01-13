@@ -151,24 +151,6 @@ GET /health
 }
 ```
 
-## 🗄️ Database Schema
-
-Bạn cần có bảng `Revenue` trong SQL Server với cấu trúc tương tự:
-
-```sql
-CREATE TABLE [Revenue] (
-    [Id] INT PRIMARY KEY IDENTITY(1,1),
-    [Date] DATETIME NOT NULL,
-    [Revenue] DECIMAL(18,2),
-    [ProductName] NVARCHAR(255),
-    [Quantity] INT,
-    [UnitPrice] DECIMAL(18,2),
-    [TotalAmount] DECIMAL(18,2)
-);
-
-CREATE INDEX IX_Revenue_Date ON [Revenue]([Date]);
-```
-
 ## 🔒 Security Notes
 
 - Không commit file `.env` vào git
