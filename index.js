@@ -18,7 +18,8 @@ async function connectDatabase() {
   try {
     pool = await sql.connect(dbConfig);
     console.log('✅ Đã kết nối thành công với SQL Server');
-  } catch (error) {
+  } 
+  catch (error) {
     console.error('❌ Lỗi kết nối database:', error);
     process.exit(1);
   }
@@ -32,7 +33,9 @@ app.get('/', (req, res) => {
     endpoints: {
       revenue: '/api/revenue',
       revenueByDate: '/api/revenue?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD',
-      revenueByMonth: '/api/revenue/month?year=YYYY&month=MM'
+      revenueByMonth: '/api/revenue/month?year=YYYY&month=MM',
+      revenueByToday: '/api/revenue/today',
+      revenueByYear: '/api/revenue/year?year=YYYY',
     }
   });
 });
@@ -44,10 +47,12 @@ app.get('/health', async (req, res) => {
   try {
     if (pool && pool.connected) {
       res.json({ status: 'healthy', database: 'connected' });
-    } else {
+    } 
+    else {
       res.status(503).json({ status: 'unhealthy', database: 'disconnected' });
     }
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(503).json({ status: 'unhealthy', error: error.message });
   }
 });

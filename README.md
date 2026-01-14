@@ -4,24 +4,20 @@ API RESTful để lấy dữ liệu doanh thu từ SQL Server database.
 
 ## 🚀 Tính năng
 
-- ✅ Lấy dữ liệu doanh thu với filter theo ngày
-- ✅ Tổng hợp doanh thu theo ngày/tháng/năm
-- ✅ Lấy doanh thu theo tháng cụ thể
-- ✅ Lấy doanh thu hôm nay
+- ✅ Lấy dữ liệu doanh thu với filter theo ngày (cột `Modified`)
+- ✅ Pagination (phân trang) - hỗ trợ `page` và `limit`
 - ✅ Connection pooling cho hiệu suất tốt
 - ✅ Error handling đầy đủ
+- ✅ Health check endpoint để kiểm tra trạng thái
+- ✅ Graceful shutdown để đóng kết nối database an toàn
 
 ## 📋 Yêu cầu
 
-- Node.js >= 14.x
+- Node.js >= 18.x
 - SQL Server (local hoặc Azure)
-- Database có bảng `Revenue` với các cột:
-  - `Date` (datetime/date)
-  - `Revenue` (decimal/float)
-  - `ProductName` (nvarchar/varchar)
-  - `Quantity` (int)
-  - `UnitPrice` (decimal/float)
-  - `TotalAmount` (decimal/float)
+- Database có bảng `DoanhThuTCKT` trong schema `dbo`
+  - Bảng phải có cột `Modified` (datetime) để filter theo ngày
+  - Các cột khác tùy thuộc vào cấu trúc dữ liệu của bạn
 
 ## 🔧 Cài đặt
 
@@ -66,81 +62,82 @@ npm start
 
 Server sẽ chạy tại `http://localhost:3000`
 
+**Kiểm tra API:**
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Lấy dữ liệu
+curl http://localhost:3000/api/revenue?limit=10&page=1
+```
+
 ## 📡 API Endpoints
 
-### 1. Lấy tất cả doanh thu
+### 1. Lấy dữ liệu doanh thu (với Pagination)
 ```
 GET /api/revenue
 ```
 
 **Query Parameters:**
-- `startDate` (optional): Ngày bắt đầu (YYYY-MM-DD)
-- `endDate` (optional): Ngày kết thúc (YYYY-MM-DD)
-- `limit` (optional): Số lượng bản ghi (mặc định: 100)
+- `startDate` (optional): Ngày bắt đầu (YYYY-MM-DD) - filter theo cột `Modified`
+- `endDate` (optional): Ngày kết thúc (YYYY-MM-DD) - filter theo cột `Modified`
+- `limit` (optional): Số lượng bản ghi mỗi trang (mặc định: 100, tối đa: 1000)
+- `page` (optional): Trang hiện tại (mặc định: 1)
 
 **Ví dụ:**
 ```bash
-GET /api/revenue?startDate=2024-01-01&endDate=2024-01-31&limit=50
+# Lấy trang đầu tiên với 50 bản ghi
+GET /api/revenue?limit=50&page=1
+
+# Lấy dữ liệu trong khoảng thời gian
+GET /api/revenue?startDate=2024-01-01&endDate=2024-01-31&limit=50&page=1
+
+# Lấy trang 2
+GET /api/revenue?page=2&limit=100
 ```
 
-### 2. Tổng hợp doanh thu
-```
-GET /api/revenue/summary
-```
+**Response với Pagination:**
+- `success`: Trạng thái thành công
+- `count`: Số lượng bản ghi trong trang hiện tại
+- `currentPage`: Trang hiện tại
+- `totalPages`: Tổng số trang
+- `data`: Mảng dữ liệu doanh thu
 
-**Query Parameters:**
-- `startDate` (optional): Ngày bắt đầu (YYYY-MM-DD)
-- `endDate` (optional): Ngày kết thúc (YYYY-MM-DD)
-- `groupBy` (optional): 'day', 'month', 'year' (mặc định: 'day')
-
-**Ví dụ:**
-```bash
-GET /api/revenue/summary?startDate=2024-01-01&endDate=2024-12-31&groupBy=month
-```
-
-### 3. Doanh thu theo tháng
-```
-GET /api/revenue/month
-```
-
-**Query Parameters:**
-- `year` (required): Năm (YYYY)
-- `month` (required): Tháng (MM)
-
-**Ví dụ:**
-```bash
-GET /api/revenue/month?year=2024&month=01
-```
-
-### 4. Doanh thu hôm nay
-```
-GET /api/revenue/today
-```
-
-### 5. Health Check
+### 2. Health Check
 ```
 GET /health
 ```
 
+Kiểm tra trạng thái server và kết nối database.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "database": "connected"
+}
+```
+
 ## 📝 Response Format
 
-### Success Response:
+### Success Response (với Pagination):
 ```json
 {
   "success": true,
   "count": 10,
+  "currentPage": 1,
+  "totalPages": 5,
   "data": [
     {
-      "date": "2024-01-15",
-      "revenue": 1500000,
-      "productName": "Product A",
-      "quantity": 10,
-      "unitPrice": 150000,
-      "totalAmount": 1500000
+      // Tất cả các cột từ bảng DoanhThuTCKT
+      "Modified": "2024-01-15T10:30:00.000Z",
+      // ... các cột khác trong bảng
     }
   ]
 }
 ```
+
+**Lưu ý:** Cấu trúc của `data` phụ thuộc vào các cột trong bảng `DoanhThuTCKT` của bạn. API sẽ trả về tất cả các cột từ bảng.
 
 ### Error Response:
 ```json
@@ -151,12 +148,71 @@ GET /health
 }
 ```
 
+### Ví dụ Response thực tế:
+```json
+{
+  "success": true,
+  "count": 50,
+  "currentPage": 1,
+  "totalPages": 10,
+  "data": [
+    {
+      "Id": 1,
+      "Modified": "2024-01-15T10:30:00.000Z",
+      // ... các cột khác
+    }
+  ]
+}
+```
+
+## 🗄️ Database Schema
+
+API sử dụng bảng `DoanhThuTCKT` trong schema `dbo`. Bảng này phải có:
+
+**Yêu cầu bắt buộc:**
+- Cột `Modified` (DATETIME) - được sử dụng để filter theo ngày và sắp xếp
+
+**Ví dụ cấu trúc bảng:**
+```sql
+-- Bảng DoanhThuTCKT phải tồn tại trong database
+-- Cột Modified là bắt buộc để filter và sort
+SELECT * FROM [dbo].[DoanhThuTCKT] WHERE [Modified] >= '2024-01-01'
+```
+
+**Lưu ý:**
+- API sẽ trả về tất cả các cột từ bảng `DoanhThuTCKT`
+- Cấu trúc dữ liệu trả về phụ thuộc vào các cột trong bảng của bạn
+- Nên có index trên cột `Modified` để tối ưu hiệu suất:
+
+```sql
+CREATE INDEX IX_DoanhThuTCKT_Modified ON [dbo].[DoanhThuTCKT]([Modified] DESC);
+```
+
 ## 🔒 Security Notes
 
 - Không commit file `.env` vào git
 - Sử dụng environment variables cho thông tin nhạy cảm
 - Cân nhắc thêm authentication/authorization cho production
 - Sử dụng HTTPS trong production
+- Giới hạn `limit` tối đa để tránh query quá lớn (hiện tại: 1000)
+- Sử dụng parameterized queries để tránh SQL injection
+
+## 🛠️ Troubleshooting
+
+### Lỗi kết nối database
+- Kiểm tra thông tin trong file `.env`
+- Đảm bảo SQL Server đang chạy và có thể truy cập được
+- Kiểm tra firewall và network settings
+- Với Azure SQL, đảm bảo `DB_ENCRYPT=true`
+
+### Lỗi "Invalid object name"
+- Đảm bảo bảng `DoanhThuTCKT` tồn tại trong schema `dbo`
+- Kiểm tra quyền truy cập của user database
+
+### Performance issues
+- Tạo index trên cột `Modified`
+- Sử dụng `limit` hợp lý (khuyến nghị: 50-100)
+- Kiểm tra connection pool settings trong `config/database.js`
 
 ## 📄 License
 
