@@ -30,7 +30,26 @@ async function getPool() {
  */
 router.get('/', async (req, res) => {
   try {
-    const { startDate, endDate, limit = 100, page = 1 } = req.query;
+    const { startDate, endDate } = req.query;
+    
+    // Validate and parse limit
+    let limit = parseInt(req.query.limit, 10);
+    if (isNaN(limit) || limit < 1) {
+      limit = 100; // Default value
+    }
+
+    if (limit > 10000) {
+      limit = 10000; // Maximum limit
+    }
+    
+    // Validate and parse page
+    let page = parseInt(req.query.page, 10);
+    if (isNaN(page) || page < 1) {
+      page = 1; // Default value
+    }
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
     
     const tableName = appConfig.getRevenueTableName();
     const dateColumn = appConfig.revenueDateColumn;
@@ -46,13 +65,10 @@ router.get('/', async (req, res) => {
       FROM ${tableName}
       WHERE 1=1
     `;
-
-    // Calculate offset
-    const offset = (page - 1) * limit;
     
 	const request = (await getPool()).request();
-    request.input('limit', sql.Int, parseInt(limit));
-    request.input('offset', sql.Int, parseInt(offset));
+    request.input('limit', sql.Int, limit);
+    request.input('offset', sql.Int, offset);
     
     if (startDate) {
       query += ` AND [${dateColumn}] >= @startDate`;
