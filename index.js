@@ -8,6 +8,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const API_SECRET_KEY = process.env.API_SECRET_KEY;
 
+app.set('trust proxy', true);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
