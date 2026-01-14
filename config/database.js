@@ -10,8 +10,8 @@ const dbConfig = {
     encrypt: process.env.DB_ENCRYPT === 'true', // true for Azure, false for local
     trustServerCertificate: process.env.DB_TRUST_CERT === 'true', // true for local dev
     enableArithAbort: true,
-    connectionTimeout: 30000,
-    requestTimeout: 30000
+    connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT) || 30000, // 60 seconds default
+    requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT) || 30000 // 120 seconds default (2 minutes)
   },
   pool: {
     max: 10,

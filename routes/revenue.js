@@ -66,20 +66,37 @@ router.get('/', async (req, res) => {
       WHERE 1=1
     `;
     
-	const request = (await getPool()).request();
-    request.input('limit', sql.Int, limit);
-    request.input('offset', sql.Int, offset);
+    // Tối ưu: Chạy query data và count song song để tăng tốc độ
+    // Tạo 2 request riêng biệt để tránh conflict
+    const dataRequest = (await getPool()).request();
+    const countRequest = (await getPool()).request();
     
+    // Set timeout cho cả 2 request (tăng timeout cho các query lớn)
+    // Timeout được tính: base timeout + thêm thời gian cho offset lớn
+    const baseTimeout = 120000; // 2 phút
+    const additionalTimeout = Math.min(offset / 1000 * 1000, 180000); // Thêm tối đa 3 phút
+    const requestTimeout = baseTimeout + additionalTimeout;
+    
+    dataRequest.timeout = requestTimeout;
+    countRequest.timeout = requestTimeout;
+    
+    // Setup parameters cho data query
+    dataRequest.input('limit', sql.Int, limit);
+    dataRequest.input('offset', sql.Int, offset);
+    
+    // Setup parameters cho count query và build WHERE clause
     if (startDate) {
       query += ` AND [${dateColumn}] >= @startDate`;
       totalQuery += ` AND [${dateColumn}] >= @startDate`;
 
       // Check if startDate includes time
       if (startDate.includes('T')) {
-        request.input('startDate', sql.Date, startDate);
+        dataRequest.input('startDate', sql.Date, startDate);
+        countRequest.input('startDate', sql.Date, startDate);
       } 
       else {
-        request.input('startDate', sql.Date, startDate + 'T00:00:00');
+        dataRequest.input('startDate', sql.Date, startDate + 'T00:00:00');
+        countRequest.input('startDate', sql.Date, startDate + 'T00:00:00');
       }
     }
     
@@ -88,17 +105,22 @@ router.get('/', async (req, res) => {
       totalQuery += ` AND [${dateColumn}] <= @endDate`;
 
       if (endDate.includes('T')) {
-        request.input('endDate', sql.Date, endDate);
+        dataRequest.input('endDate', sql.Date, endDate);
+        countRequest.input('endDate', sql.Date, endDate);
       }
       else {
-        request.input('endDate', sql.Date, endDate + 'T23:59:59');
+        dataRequest.input('endDate', sql.Date, endDate + 'T23:59:59');
+        countRequest.input('endDate', sql.Date, endDate + 'T23:59:59');
       }
     }
     
     query += ` ORDER BY [${dateColumn}] DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;
     
-    const result = await request.query(query);
-    const totalResult = await request.query(totalQuery);
+    // Chạy song song để tăng tốc độ
+    const [result, totalResult] = await Promise.all([
+      dataRequest.query(query),
+      countRequest.query(totalQuery)
+    ]);
 
     // Check if there are more pages
     const totalCount = totalResult.recordset[0].totalCount;
