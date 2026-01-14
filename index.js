@@ -38,7 +38,7 @@ app.use((req, res, next) => {
     });
   }
 
-  return next();
+  next();
 });
 
 // Database connection pool
@@ -51,7 +51,7 @@ async function connectDatabase() {
   } 
   catch (error) {
     console.error('❌ Lỗi kết nối database:', error);
-    process.exit(1);
+    throw error; // ❗ KHÔNG exit ở đây
   }
 }
 
@@ -60,36 +60,22 @@ app.get('/', (req, res) => {
   res.json({
     message: 'API lấy dữ liệu doanh thu từ SQL Server',
     version: '1.0.0',
-    endpoints: {
-      revenue: '/api/revenue',
-      revenueByDate: '/api/revenue?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD',
-      revenueByMonth: '/api/revenue/month?year=YYYY&month=MM',
-      revenueByToday: '/api/revenue/today',
-      revenueByYear: '/api/revenue/year?year=YYYY',
-    }
   });
 });
 
 app.use('/api/revenue', revenueRoutes);
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    if (pool && pool.connected) {
-      res.json({ status: 'healthy', database: 'connected' });
-    } 
-    else {
-      res.status(503).json({ status: 'unhealthy', database: 'disconnected' });
-    }
-  } 
-  catch (error) {
-    res.status(503).json({ status: 'unhealthy', error: error.message });
+app.get('/health', (req, res) => {
+  if (pool && pool.connected) {
+    return res.json({ status: 'healthy', database: 'connected' });
   }
+  res.status(503).json({ status: 'unhealthy', database: 'disconnected' });
 });
 
-// Error handling middleware
+// Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('❌ Error:', err);
   res.status(500).json({
     error: 'Internal Server Error',
     message: err.message
@@ -97,30 +83,46 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
+let server;
+
 async function startServer() {
   try {
     await connectDatabase();
 
-    app.listen(PORT, '127.0.0.1', () => {
-      console.log(`🚀 API Server running on port ${PORT}`);
+    server = app.listen(PORT, '127.0.0.1', () => {
+      console.log(`🚀 API Server running at http://127.0.0.1:${PORT}`);
     });
 
   } 
   catch (err) {
     console.error('❌ Failed to start server:', err);
-    process.exit(1); // PM2 sẽ restart
+    process.exit(1); // PM2 restart
   }
 }
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Đang tắt server...');
+const shutdown = async (signal) => {
+  console.log(`\n🛑 Nhận tín hiệu ${signal}, đang shutdown...`);
+
+  if (server) {
+    await new Promise(resolve => {
+      server.close(() => {
+        console.log('✅ HTTP server đã đóng');
+        resolve();
+      });
+    });
+  }
+
   if (pool) {
     await pool.close();
     console.log('✅ Đã đóng kết nối database');
   }
+
   process.exit(0);
-});
+};
+
+process.on('SIGINT', shutdown);   // Ctrl+C
+process.on('SIGTERM', shutdown);  // PM2 / systemctl
 
 startServer();
 
