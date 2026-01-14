@@ -96,10 +96,18 @@ app.use((err, req, res, next) => {
 
 // Start server
 async function startServer() {
-  await connectDatabase();
-  app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-  });
+  try {
+    await connectDatabase();
+
+    app.listen(PORT, '127.0.0.1', () => {
+      console.log(`🚀 API Server running on port ${PORT}`);
+    });
+
+  } 
+  catch (err) {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1); // PM2 sẽ restart
+  }
 }
 
 // Graceful shutdown
