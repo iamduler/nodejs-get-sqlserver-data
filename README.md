@@ -46,6 +46,9 @@ DB_PASSWORD=your_password
 DB_PORT=1433
 DB_ENCRYPT=false
 DB_TRUST_CERT=true
+
+# Secret key để bảo vệ API (bắt buộc cho môi trường staging/production)
+API_SECRET_KEY=your_strong_secret_key
 ```
 
 ## 🏃 Chạy ứng dụng
@@ -196,6 +199,31 @@ CREATE INDEX IX_DoanhThuTCKT_Modified ON [dbo].[DoanhThuTCKT]([Modified] DESC);
 - Sử dụng HTTPS trong production
 - Giới hạn `limit` tối đa để tránh query quá lớn (hiện tại: 1000)
 - Sử dụng parameterized queries để tránh SQL injection
+
+### API Secret Key
+
+Để bảo vệ API, hệ thống hỗ trợ **secret key** đơn giản cấp độ ứng dụng:
+
+- Cấu hình trong file `.env`:
+  ```env
+  API_SECRET_KEY=your_strong_secret_key
+  ```
+- Khi `API_SECRET_KEY` được set, tất cả các endpoint (trừ `/` và `/health`) sẽ yêu cầu secret key.
+- Cách gửi secret key khi gọi API:
+  - Qua header:
+    ```http
+    GET /api/revenue?limit=50&page=1 HTTP/1.1
+    Host: your-domain.com
+    x-api-key: your_strong_secret_key
+    ```
+  - Hoặc qua query string (ít an toàn hơn, chỉ dùng khi cần):
+    ```
+    GET /api/revenue?limit=50&page=1&secret_key=your_strong_secret_key
+    ```
+
+**Lưu ý:**
+- Trong môi trường development, nếu không set `API_SECRET_KEY` thì middleware sẽ bỏ qua check để bạn test nhanh.
+- Trong môi trường staging/production, **bắt buộc** nên set `API_SECRET_KEY` và dùng HTTPS.
 
 ## 🛠️ Troubleshooting
 

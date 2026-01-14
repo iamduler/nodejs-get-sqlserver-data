@@ -53,13 +53,26 @@ router.get('/', async (req, res) => {
     if (startDate) {
       query += ` AND [Modified] >= @startDate`;
       totalQuery += ` AND [Modified] >= @startDate`;
-      request.input('startDate', sql.Date, startDate + ' 00:00:00');
+
+      // Check if startDate includes time
+      if (startDate.includes('T')) {
+        request.input('startDate', sql.Date, startDate);
+      } 
+      else {
+        request.input('startDate', sql.Date, startDate + 'T00:00:00');
+      }
     }
     
     if (endDate) {
       query += ` AND [Modified] <= @endDate`;
       totalQuery += ` AND [Modified] <= @endDate`;
-      request.input('endDate', sql.Date, endDate + ' 23:59:59');
+
+      if (endDate.includes('T')) {
+        request.input('endDate', sql.Date, endDate);
+      }
+      else {
+        request.input('endDate', sql.Date, endDate + 'T23:59:59');
+      }
     }
     
     query += ` ORDER BY [Modified] DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;

@@ -6,10 +6,38 @@ const revenueRoutes = require('./routes/revenue');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const API_SECRET_KEY = process.env.API_SECRET_KEY;
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Simple API key authentication middleware
+// - Đọc key từ header: x-api-key
+app.use((req, res, next) => {
+  // Bỏ qua một số endpoint public
+  if (req.path === '/' || req.path === '/health') {
+    return next();
+  }
+
+  // Nếu không cấu hình API_SECRET_KEY thì không check (chỉ nên dùng ở dev)
+  // if (!API_SECRET_KEY) {
+  //   return next();
+  // }
+
+  const headerKey = req.headers['x-api-key'];
+  const providedKey = headerKey;
+
+  if (!providedKey || providedKey !== API_SECRET_KEY) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      message: 'Missing or invalid API secret key',
+    });
+  }
+
+  return next();
+});
 
 // Database connection pool
 let pool;
