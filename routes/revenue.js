@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sql = require('mssql');
 const dbConfig = require('../config/database');
+const appConfig = require('../config/app');
 
 // Create a connection pool
 let pool;
@@ -31,15 +32,18 @@ router.get('/', async (req, res) => {
   try {
     const { startDate, endDate, limit = 100, page = 1 } = req.query;
     
+    const tableName = appConfig.getRevenueTableName();
+    const dateColumn = appConfig.revenueDateColumn;
+    
     let query = `
       SELECT *
-      FROM [dbo].[DoanhThuTCKT]
+      FROM ${tableName}
       WHERE 1=1
     `;
 
     let totalQuery = `
       SELECT COUNT(*) AS totalCount
-      FROM [dbo].[DoanhThuTCKT]
+      FROM ${tableName}
       WHERE 1=1
     `;
 
@@ -51,8 +55,8 @@ router.get('/', async (req, res) => {
     request.input('offset', sql.Int, parseInt(offset));
     
     if (startDate) {
-      query += ` AND [Modified] >= @startDate`;
-      totalQuery += ` AND [Modified] >= @startDate`;
+      query += ` AND [${dateColumn}] >= @startDate`;
+      totalQuery += ` AND [${dateColumn}] >= @startDate`;
 
       // Check if startDate includes time
       if (startDate.includes('T')) {
@@ -64,8 +68,8 @@ router.get('/', async (req, res) => {
     }
     
     if (endDate) {
-      query += ` AND [Modified] <= @endDate`;
-      totalQuery += ` AND [Modified] <= @endDate`;
+      query += ` AND [${dateColumn}] <= @endDate`;
+      totalQuery += ` AND [${dateColumn}] <= @endDate`;
 
       if (endDate.includes('T')) {
         request.input('endDate', sql.Date, endDate);
@@ -75,7 +79,7 @@ router.get('/', async (req, res) => {
       }
     }
     
-    query += ` ORDER BY [Modified] DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;
+    query += ` ORDER BY [${dateColumn}] DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;
     
     const result = await request.query(query);
     const totalResult = await request.query(totalQuery);

@@ -15,9 +15,10 @@ API RESTful để lấy dữ liệu doanh thu từ SQL Server database.
 
 - Node.js >= 18.x
 - SQL Server (local hoặc Azure)
-- Database có bảng `DoanhThuTCKT` trong schema `dbo`
-  - Bảng phải có cột `Modified` (datetime) để filter theo ngày
-  - Các cột khác tùy thuộc vào cấu trúc dữ liệu của bạn
+- Database có table/view (cấu hình qua biến môi trường)
+  - Mặc định: view `DoanhThuVND` trong schema `dbo`
+  - Phải có cột datetime (mặc định: `Modified`) để filter theo ngày
+  - Các cột khác tùy thuộc vào cấu trúc dữ liệu của table/view
 
 ## 🔧 Cài đặt
 
@@ -39,6 +40,10 @@ cp .env.example .env
 
 4. Cấu hình database trong file `.env`:
 ```env
+# Server Configuration
+PORT=3000
+
+# SQL Server Database Configuration
 DB_SERVER=localhost
 DB_NAME=your_database
 DB_USER=sa
@@ -47,9 +52,19 @@ DB_PORT=1433
 DB_ENCRYPT=false
 DB_TRUST_CERT=true
 
-# Secret key để bảo vệ API (bắt buộc cho môi trường staging/production)
+# Database Table/View Configuration
+DB_REVENUE_SCHEMA=dbo
+DB_REVENUE_TABLE=DoanhThuVND
+DB_REVENUE_DATE_COLUMN=Modified
+
+# API Secret Key (bắt buộc cho môi trường staging/production)
 API_SECRET_KEY=your_strong_secret_key
 ```
+
+**Lưu ý về cấu hình Table/View:**
+- `DB_REVENUE_SCHEMA`: Schema của table/view (mặc định: `dbo`)
+- `DB_REVENUE_TABLE`: Tên table hoặc view (mặc định: `DoanhThuVND`)
+- `DB_REVENUE_DATE_COLUMN`: Tên cột datetime để filter và sort (mặc định: `Modified`)
 
 ## 🏃 Chạy ứng dụng
 
@@ -132,7 +147,7 @@ Kiểm tra trạng thái server và kết nối database.
   "totalPages": 5,
   "data": [
     {
-      // Tất cả các cột từ bảng DoanhThuTCKT
+      // Tất cả các cột từ view DoanhThuVND
       "Modified": "2024-01-15T10:30:00.000Z",
       // ... các cột khác trong bảng
     }
@@ -140,7 +155,7 @@ Kiểm tra trạng thái server và kết nối database.
 }
 ```
 
-**Lưu ý:** Cấu trúc của `data` phụ thuộc vào các cột trong bảng `DoanhThuTCKT` của bạn. API sẽ trả về tất cả các cột từ bảng.
+**Lưu ý:** Cấu trúc của `data` phụ thuộc vào các cột trong view `DoanhThuVND` của bạn. API sẽ trả về tất cả các cột từ view.
 
 ### Error Response:
 ```json
@@ -170,26 +185,33 @@ Kiểm tra trạng thái server và kết nối database.
 
 ## 🗄️ Database Schema
 
-API sử dụng bảng `DoanhThuTCKT` trong schema `dbo`. Bảng này phải có:
+API sử dụng table/view được cấu hình qua biến môi trường (mặc định: view `DoanhThuVND` trong schema `dbo`).
+
+**Cấu hình trong `.env`:**
+```env
+DB_REVENUE_SCHEMA=dbo          # Schema của table/view
+DB_REVENUE_TABLE=DoanhThuVND   # Tên table hoặc view
+DB_REVENUE_DATE_COLUMN=Modified # Tên cột datetime để filter
+```
 
 **Yêu cầu bắt buộc:**
-- Cột `Modified` (DATETIME) - được sử dụng để filter theo ngày và sắp xếp
+- Table/view phải tồn tại trong database
+- Phải có cột datetime (cấu hình qua `DB_REVENUE_DATE_COLUMN`) để filter theo ngày và sắp xếp
 
-**Ví dụ cấu trúc bảng:**
+**Ví dụ query:**
 ```sql
--- Bảng DoanhThuTCKT phải tồn tại trong database
--- Cột Modified là bắt buộc để filter và sort
-SELECT * FROM [dbo].[DoanhThuTCKT] WHERE [Modified] >= '2024-01-01'
+-- Với cấu hình mặc định
+SELECT * FROM [dbo].[DoanhThuVND] WHERE [Modified] >= '2024-01-01'
+
+-- Hoặc với table/view khác (tùy cấu hình)
+SELECT * FROM [your_schema].[your_table] WHERE [your_date_column] >= '2024-01-01'
 ```
 
 **Lưu ý:**
-- API sẽ trả về tất cả các cột từ bảng `DoanhThuTCKT`
-- Cấu trúc dữ liệu trả về phụ thuộc vào các cột trong bảng của bạn
-- Nên có index trên cột `Modified` để tối ưu hiệu suất:
-
-```sql
-CREATE INDEX IX_DoanhThuTCKT_Modified ON [dbo].[DoanhThuTCKT]([Modified] DESC);
-```
+- API sẽ trả về tất cả các cột từ table/view được cấu hình
+- Cấu trúc dữ liệu trả về phụ thuộc vào các cột trong table/view của bạn
+- Nếu sử dụng view, đảm bảo các bảng cơ sở có index phù hợp để tối ưu hiệu suất
+- Bạn có thể thay đổi table/view mà không cần sửa code, chỉ cần cập nhật file `.env`
 
 ## 🔒 Security Notes
 
@@ -234,13 +256,15 @@ CREATE INDEX IX_DoanhThuTCKT_Modified ON [dbo].[DoanhThuTCKT]([Modified] DESC);
 - Với Azure SQL, đảm bảo `DB_ENCRYPT=true`
 
 ### Lỗi "Invalid object name"
-- Đảm bảo bảng `DoanhThuTCKT` tồn tại trong schema `dbo`
-- Kiểm tra quyền truy cập của user database
+- Đảm bảo table/view được cấu hình trong `.env` tồn tại trong database
+- Kiểm tra `DB_REVENUE_SCHEMA` và `DB_REVENUE_TABLE` trong file `.env`
+- Kiểm tra quyền truy cập của user database đối với table/view và các bảng cơ sở (nếu dùng view)
 
 ### Performance issues
-- Tạo index trên cột `Modified`
+- Tạo index trên cột datetime (cột được cấu hình trong `DB_REVENUE_DATE_COLUMN`)
 - Sử dụng `limit` hợp lý (khuyến nghị: 50-100)
 - Kiểm tra connection pool settings trong `config/database.js`
+- Nếu dùng view, đảm bảo các bảng cơ sở có index phù hợp
 
 ## 📄 License
 
