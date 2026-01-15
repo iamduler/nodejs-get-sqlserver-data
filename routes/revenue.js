@@ -59,17 +59,10 @@ router.get('/', async (req, res) => {
       FROM ${tableName}
       WHERE 1=1
     `;
-
-    let totalQuery = `
-      SELECT COUNT(*) AS totalCount
-      FROM ${tableName}
-      WHERE 1=1
-    `;
     
     // Tối ưu: Chạy query data và count song song để tăng tốc độ
     // Tạo 2 request riêng biệt để tránh conflict
     const dataRequest = (await getPool()).request();
-    const countRequest = (await getPool()).request();
     
     // Set timeout cho cả 2 request (tăng timeout cho các query lớn)
     // Timeout được tính: base timeout + thêm thời gian cho offset lớn
@@ -78,7 +71,6 @@ router.get('/', async (req, res) => {
     const requestTimeout = baseTimeout + additionalTimeout;
     
     dataRequest.timeout = requestTimeout;
-    countRequest.timeout = requestTimeout;
     
     // Setup parameters cho data query
     dataRequest.input('limit', sql.Int, limit);
@@ -87,50 +79,39 @@ router.get('/', async (req, res) => {
     // Setup parameters cho count query và build WHERE clause
     if (startDate) {
       query += ` AND [${dateColumn}] >= @startDate`;
-      totalQuery += ` AND [${dateColumn}] >= @startDate`;
 
       // Check if startDate includes time
       if (startDate.includes('T')) {
         dataRequest.input('startDate', sql.Date, startDate);
-        countRequest.input('startDate', sql.Date, startDate);
       } 
       else {
         dataRequest.input('startDate', sql.Date, startDate + 'T00:00:00');
-        countRequest.input('startDate', sql.Date, startDate + 'T00:00:00');
       }
     }
     
     if (endDate) {
       query += ` AND [${dateColumn}] <= @endDate`;
-      totalQuery += ` AND [${dateColumn}] <= @endDate`;
 
       if (endDate.includes('T')) {
         dataRequest.input('endDate', sql.Date, endDate);
-        countRequest.input('endDate', sql.Date, endDate);
       }
       else {
         dataRequest.input('endDate', sql.Date, endDate + 'T23:59:59');
-        countRequest.input('endDate', sql.Date, endDate + 'T23:59:59');
       }
     }
     
     query += ` ORDER BY [${dateColumn}] DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`;
-    
-    // Chạy song song để tăng tốc độ
-    const [result, totalResult] = await Promise.all([
-      dataRequest.query(query),
-      countRequest.query(totalQuery)
-    ]);
+    const result = await dataRequest.query(query);
 
     // Check if there are more pages
-    const totalCount = totalResult.recordset[0].totalCount;
-    const totalPages = Math.ceil(totalCount / limit);
+    const length = result.recordset.length;
+    const hasNextPage = length > limit;
 
     res.json({
       success: true,
-      count: result.recordset.length,
+      count: length,
       currentPage: page,
-      totalPages: totalPages,
+      hasNextPage: hasNextPage,
       data: result.recordset,
     });
   } 
