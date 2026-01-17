@@ -60,6 +60,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'API lấy dữ liệu doanh thu từ SQL Server',
     version: '1.0.0',
+    author: 'Duler@CloudGo',
   });
 });
 
