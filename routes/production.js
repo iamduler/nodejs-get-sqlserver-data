@@ -20,8 +20,8 @@ async function getPool() {
 }
 
 /**
- * GET /api/revenue
- * Lấy dữ liệu doanh thu
+ * GET /api/production
+ * Lấy dữ liệu sản lượng
  * Query params:
  * - startDate: Ngày bắt đầu (YYYY-MM-DD)
  * - endDate: Ngày kết thúc (YYYY-MM-DD)
@@ -51,9 +51,9 @@ router.get('/', async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
-    const tableName = 'DoanhThuVND';
-    const dateColumn = 'Modified';
     const schema = appConfig.getSchema();
+    const tableName = 'SanLuong';
+    const dateColumn = 'Modified';
     
     let query = `
       SELECT *
@@ -136,13 +136,14 @@ router.get('/', async (req, res) => {
     });
   } 
   catch (error) {
-    console.error('Error fetching revenue:', error);
+    console.error('Error fetching production:', error);
     res.status(500).json({
       success: false,
-      error: 'Lỗi khi lấy dữ liệu doanh thu',
+      error: 'Lỗi khi lấy dữ liệu sản lượng',
       message: error.message
     });
   }
 });
 
 module.exports = router;
+

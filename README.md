@@ -54,7 +54,6 @@ DB_TRUST_CERT=true
 
 # Database Table/View Configuration
 DB_REVENUE_SCHEMA=dbo
-DB_REVENUE_TABLE=DoanhThuVND
 DB_REVENUE_DATE_COLUMN=Modified
 
 # API Secret Key (bắt buộc cho môi trường staging/production)
@@ -63,7 +62,6 @@ API_SECRET_KEY=your_strong_secret_key
 
 **Lưu ý về cấu hình Table/View:**
 - `DB_REVENUE_SCHEMA`: Schema của table/view (mặc định: `dbo`)
-- `DB_REVENUE_TABLE`: Tên table hoặc view (mặc định: `DoanhThuVND`)
 - `DB_REVENUE_DATE_COLUMN`: Tên cột datetime để filter và sort (mặc định: `Modified`)
 
 ## 🏃 Chạy ứng dụng
@@ -121,7 +119,34 @@ GET /api/revenue?page=2&limit=100
 - `totalPages`: Tổng số trang
 - `data`: Mảng dữ liệu doanh thu
 
-### 2. Health Check
+### 2. Lấy dữ liệu sản lượng (với Pagination)
+```
+GET /api/production
+```
+
+**Query Parameters (tương tự `/api/revenue`):**
+- `startDate` (optional): Ngày bắt đầu (YYYY-MM-DD) - filter theo cột `Modified`
+- `endDate` (optional): Ngày kết thúc (YYYY-MM-DD) - filter theo cột `Modified`
+- `limit` (optional): Số lượng bản ghi mỗi trang (mặc định: 100, tối đa: 10000)
+- `page` (optional): Trang hiện tại (mặc định: 1)
+
+**Ví dụ:**
+```bash
+# Lấy trang đầu tiên với 100 bản ghi
+GET /api/production?limit=100&page=1
+
+# Lấy dữ liệu trong khoảng thời gian
+GET /api/production?startDate=2024-01-01&endDate=2024-01-31&limit=500&page=2
+```
+
+**Response với Pagination:**
+- `success`: Trạng thái thành công
+- `count`: Số lượng bản ghi trong trang hiện tại
+- `currentPage`: Trang hiện tại
+- `totalPages`: Tổng số trang
+- `data`: Mảng dữ liệu sản lượng (từ bảng `SanLuong`)
+
+### 3. Health Check
 ```
 GET /health
 ```
@@ -187,24 +212,23 @@ Kiểm tra trạng thái server và kết nối database.
 
 API sử dụng table/view được cấu hình qua biến môi trường (mặc định: view `DoanhThuVND` trong schema `dbo`).
 
-**Cấu hình trong `.env`:**
-```env
-DB_REVENUE_SCHEMA=dbo          # Schema của table/view
-DB_REVENUE_TABLE=DoanhThuVND   # Tên table hoặc view
-DB_REVENUE_DATE_COLUMN=Modified # Tên cột datetime để filter
-```
-
 **Yêu cầu bắt buộc:**
 - Table/view phải tồn tại trong database
 - Phải có cột datetime (cấu hình qua `DB_REVENUE_DATE_COLUMN`) để filter theo ngày và sắp xếp
 
-**Ví dụ query:**
+**Ví dụ query doanh thu:**
 ```sql
 -- Với cấu hình mặc định
 SELECT * FROM [dbo].[DoanhThuVND] WHERE [Modified] >= '2024-01-01'
 
 -- Hoặc với table/view khác (tùy cấu hình)
 SELECT * FROM [your_schema].[your_table] WHERE [your_date_column] >= '2024-01-01'
+```
+
+**Ví dụ query sản lượng:**
+```sql
+-- Bảng SanLuong (cùng schema với cấu hình DB_SCHEMA, mặc định: dbo)
+SELECT * FROM [dbo].[SanLuong] WHERE [Modified] >= '2024-01-01'
 ```
 
 **Lưu ý:**
@@ -257,7 +281,7 @@ SELECT * FROM [your_schema].[your_table] WHERE [your_date_column] >= '2024-01-01
 
 ### Lỗi "Invalid object name"
 - Đảm bảo table/view được cấu hình trong `.env` tồn tại trong database
-- Kiểm tra `DB_REVENUE_SCHEMA` và `DB_REVENUE_TABLE` trong file `.env`
+- Kiểm tra `DB_REVENUE_SCHEMA` trong file `.env`
 - Kiểm tra quyền truy cập của user database đối với table/view và các bảng cơ sở (nếu dùng view)
 
 ### Performance issues

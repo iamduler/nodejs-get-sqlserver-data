@@ -3,6 +3,7 @@ const express = require('express');
 const sql = require('mssql');
 const dbConfig = require('./config/database');
 const revenueRoutes = require('./routes/revenue');
+const productionRoutes = require('./routes/production');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -65,6 +66,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/revenue', revenueRoutes);
+app.use('/api/production', productionRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
