@@ -2,12 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
 const dbConfig = require('./config/database');
+const appConfig = require('./config/app');
 const revenueRoutes = require('./routes/revenue');
 const productionRoutes = require('./routes/production');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const API_SECRET_KEY = process.env.API_SECRET_KEY;
+const PORT = appConfig.port || 3000;
+const BIND_ADDRESS = appConfig.getBindAddress();
+const API_SECRET_KEY = appConfig.apiSecretKey;
 
 app.set('trust proxy', true);
 
@@ -61,7 +63,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'API lấy dữ liệu doanh thu từ SQL Server',
     version: '1.0.0',
-    author: 'Duler@CloudGo',
+    author: 'Duler@CloudGO',
   });
 });
 
@@ -92,8 +94,8 @@ async function startServer() {
   try {
     await connectDatabase();
 
-    server = app.listen(PORT, '127.0.0.1', () => {
-      console.log(`🚀 API Server running at http://127.0.0.1:${PORT}`);
+    server = app.listen(PORT, BIND_ADDRESS, () => {
+      console.log(`🚀 API Server running at http://${BIND_ADDRESS}:${PORT}`);
     });
 
   } 

@@ -38,10 +38,14 @@ npm install
 cp .env.example .env
 ```
 
-4. Cấu hình database trong file `.env`:
+4. Cấu hình server & database trong file `.env`:
 ```env
 # Server Configuration
 PORT=3000
+# Địa chỉ bind cho HTTP server
+# - 127.0.0.1: chỉ listen trên localhost (mặc định, an toàn cho dev)
+# - 0.0.0.0: listen trên tất cả interfaces (dùng khi deploy ra ngoài)
+BIND_ADDRESS=127.0.0.1
 
 # SQL Server Database Configuration
 DB_SERVER=localhost
@@ -53,16 +57,14 @@ DB_ENCRYPT=false
 DB_TRUST_CERT=true
 
 # Database Table/View Configuration
-DB_REVENUE_SCHEMA=dbo
-DB_REVENUE_DATE_COLUMN=Modified
+DB_SCHEMA=dbo
 
 # API Secret Key (bắt buộc cho môi trường staging/production)
 API_SECRET_KEY=your_strong_secret_key
 ```
 
 **Lưu ý về cấu hình Table/View:**
-- `DB_REVENUE_SCHEMA`: Schema của table/view (mặc định: `dbo`)
-- `DB_REVENUE_DATE_COLUMN`: Tên cột datetime để filter và sort (mặc định: `Modified`)
+- `DB_SCHEMA`: Schema của table/view (mặc định: `dbo`)
 
 ## 🏃 Chạy ứng dụng
 
@@ -76,7 +78,7 @@ npm run dev
 npm start
 ```
 
-Server sẽ chạy tại `http://localhost:3000`
+Server sẽ chạy tại `http://BIND_ADDRESS:PORT` (mặc định: `http://127.0.0.1:3000`)
 
 **Kiểm tra API:**
 ```bash
@@ -281,11 +283,10 @@ SELECT * FROM [dbo].[SanLuong] WHERE [Modified] >= '2024-01-01'
 
 ### Lỗi "Invalid object name"
 - Đảm bảo table/view được cấu hình trong `.env` tồn tại trong database
-- Kiểm tra `DB_REVENUE_SCHEMA` trong file `.env`
+- Kiểm tra `DB_SCHEMA` trong file `.env`
 - Kiểm tra quyền truy cập của user database đối với table/view và các bảng cơ sở (nếu dùng view)
 
 ### Performance issues
-- Tạo index trên cột datetime (cột được cấu hình trong `DB_REVENUE_DATE_COLUMN`)
 - Sử dụng `limit` hợp lý (khuyến nghị: 50-100)
 - Kiểm tra connection pool settings trong `config/database.js`
 - Nếu dùng view, đảm bảo các bảng cơ sở có index phù hợp
